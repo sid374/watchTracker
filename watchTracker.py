@@ -32,7 +32,7 @@ def trackWatches():
 					 client_secret=client_secret,
 					 user_agent='Watch Tracker')
 
-	watchesToLookFor = ["ORIS","ROLEX"]
+	watchesToLookFor = ["ORIS"]
 	for post in reddit.subreddit('watchexchange').stream.submissions():
 		if any(tag in post.title.upper() for tag in watchesToLookFor):
 			postTitle = post.title
