@@ -1,3 +1,7 @@
+A tool to allow you to get text notifications (for free),
+every time a new watch for sale is posted on /r/watchexchange that
+meets your keyword based criteria.
+
 Quickstart:
 1. pipenv install
 2. pipenv shell
