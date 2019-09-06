@@ -1,0 +1,7 @@
+Quickstart:
+1. pipenv install
+2. pipenv shell
+3. python setup.py --u <gmail email address> --p <gmail password> # This will get stored in the python keyring
+4. copy example_config.ini and rename to config.ini. Put in reddit client id and secret id
+5. python watchTracker.py
+6. Spend some mooolah on dope watches
