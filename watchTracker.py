@@ -28,17 +28,21 @@ logger.addHandler(ch)
 config = configparser.ConfigParser()
 config.read(CONFIG_FILE_NAME)
 
-def loadCacheOrCreateNew():
+def getOrCreateNewCache():
     try:
         with open(PICKLE_FILE_NAME, 'r') as fh:
             postCache = pickle.load(fh)
+            if not isinstance(postCache, Set):
+                postCache = Set()
     except Exception:
         postCache = Set()
     return postCache
 
+postCache = getOrCreateNewCache()
+
 # This is a blocking function
 def trackWatches():
-        postCache = loadCacheOrCreateNew()
+        global postCache
 	redditConfig = config['REDDIT']
 	client_id = redditConfig['client_id']
 	client_secret = redditConfig['client_secret']
@@ -68,10 +72,12 @@ def trackWatches():
 			logger.info(messageContents)
 
 def saveCache():
+    global postCache
     with open(PICKLE_FILE_NAME, 'wb') as handle:
             pickle.dump(postCache, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 def main():
+    global postCache
     running = True
     while running:
         try:
@@ -79,7 +85,7 @@ def main():
         except KeyboardInterrupt:
             logger.info("Keyboard terminate received")
             running = False
-        except PrawcoreException as e:
+        except Exception as e:
             logger.exception('run loop exeption: {0}'.format(e))
             time.sleep(10)
             SMS.send("Something went wrong with WatchTracker :(")
