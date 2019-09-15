@@ -1,15 +1,21 @@
 import praw
+import pickle
+from sets import Set
 import pdb
 import SMS
 import datetime
 import logging
 import configparser
 
+PICKLE_FILE_NAME = "post.pickle"
+LOG_FILE_NAME = "watchtracker.log"
+CONFIG_FILE_NAME = "config.ini"
+
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-fileHandler = logging.FileHandler("watchtracker.log")
+fileHandler = logging.FileHandler(LOG_FILE_NAME)
 fileHandler.setLevel(logging.DEBUG)
 fileHandler.setFormatter(formatter)
 logger.addHandler(fileHandler)
@@ -20,10 +26,19 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read(CONFIG_FILE_NAME)
+
+def loadCacheOrCreateNew():
+    try:
+        with open(PICKLE_FILE_NAME, 'r') as fh:
+            postCache = pickle.load(fh)
+    except Exception:
+        postCache = Set()
+    return postCache
 
 # This is a blocking function
 def trackWatches():
+        postCache = loadCacheOrCreateNew()
 	redditConfig = config['REDDIT']
 	client_id = redditConfig['client_id']
 	client_secret = redditConfig['client_secret']
@@ -32,9 +47,13 @@ def trackWatches():
 					 client_secret=client_secret,
 					 user_agent='Watch Tracker')
 
-	watchesToLookFor = ["ORIS"]
+        watchesToLookFor = ["ORIS","HYDROCONQUEST","SEAMASTER", "SKX013", "MAX BILL", "C60", "TRIDENT", "OCEAN"]
 	for post in reddit.subreddit('watchexchange').stream.submissions():
+                if post.id in postCache:
+                    logger.info("Post {0} found in cache".format(post.id))
+                    continue
 		if any(tag in post.title.upper() for tag in watchesToLookFor):
+                        postCache.add(post.id)
 			postTitle = post.title
 			postText = post.selftext
 			postDate =  datetime.datetime.fromtimestamp(post.created)
@@ -44,9 +63,29 @@ def trackWatches():
 			for comment in post.comments:
 				if comment.author and comment.author.name == post.author.name:
 					authorComments.append(comment.body)
-			messageContents = "{0} - {1} {2} {3}".format(postTitle, postDate, postText, postSelfUrl)
+			messageContents = "{0} - {1} {2} {3}".format(postTitle.encode('ascii', 'ignore'), postDate, postSelfUrl.encode('ascii', 'ignore'),postText.encode('ascii', 'ignore'))
 			SMS.send(messageContents)
 			logger.info(messageContents)
 
+def saveCache():
+    with open(PICKLE_FILE_NAME, 'wb') as handle:
+            pickle.dump(postCache, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-trackWatches()
+def main():
+    running = True
+    while running:
+        try:
+            trackWatches()
+        except KeyboardInterrupt:
+            logger.info("Keyboard terminate received")
+            running = False
+        except PrawcoreException as e:
+            logger.exception('run loop exeption: {0}'.format(e))
+            time.sleep(10)
+            SMS.send("Something went wrong with WatchTracker :(")
+        finally:
+            saveCache()
+
+
+if __name__== "__main__":
+    main()
